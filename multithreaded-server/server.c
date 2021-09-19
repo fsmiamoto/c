@@ -3,6 +3,7 @@
 #include <arpa/inet.h>
 #include <limits.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,12 +15,16 @@
 #define BUFSIZE 4096
 #define SOCKETERROR (-1)
 #define SERVER_BACKLOG 100
+#define MAX_THREADS 20
+
+sem_t thread_sem;
 
 typedef struct sockaddr_in SA_IN;
 typedef struct sockaddr SA;
 
 void *handle_connection(void *p_client_socket);
 int check(int got, const char *msg);
+void *thread_func(void *arg);
 
 int main(int argc, char **argv) {
   int server_socket, client_socket, addr_size;
@@ -38,6 +43,8 @@ int main(int argc, char **argv) {
 
   check(listen(server_socket, SERVER_BACKLOG), "Failed to listen!");
 
+  sem_init(&thread_sem, 0, MAX_THREADS);
+
   for (;;) {
     printf("Listening for connections...\n");
 
@@ -47,6 +54,7 @@ int main(int argc, char **argv) {
           "Failed to accept connection");
     printf("Connected!\n");
 
+    sem_wait(&thread_sem);
     pthread_t t;
     int *pclient = (int *)malloc(sizeof(int));
     *pclient = client_socket;
